@@ -1,4 +1,4 @@
-# Image Translator
+# PicLingo
 
 <p align="center">
   <a href="#chinese-version">中文</a> | <a href="#english-version">English</a>
