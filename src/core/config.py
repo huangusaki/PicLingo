@@ -1,7 +1,19 @@
 import configparser
 import os
 
-CONFIG_FILE = os.path.join("config", "config.ini")
+# Use AppData directory for config file to avoid polluting the exe directory
+def _get_config_path():
+    """Get the config file path in the user's AppData directory."""
+    appdata = os.getenv('APPDATA')  # Windows: C:\Users\<username>\AppData\Roaming
+    if appdata:
+        app_dir = os.path.join(appdata, 'ImageTranslator')
+        os.makedirs(app_dir, exist_ok=True)
+        return os.path.join(app_dir, 'config.ini')
+    else:
+        # Fallback to local directory if APPDATA is not available
+        return os.path.join("config", "config.ini")
+
+CONFIG_FILE = _get_config_path()
 DEFAULT_CONFIG = {
     "UI": {
         "background_image_path": "",

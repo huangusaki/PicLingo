@@ -145,3 +145,22 @@ config.ini
 *.bak
 *.tmp
 error.log
+
+# PyInstaller packaging
+*.spec
+build/
+dist/
+*.exe
+*.ico
+create_icon.py
+build_log.txt
+
+# Images (except samples)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+!sample/*.png
+!sample/*.jpg
+!sample/*.jpeg
