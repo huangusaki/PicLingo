@@ -95,6 +95,21 @@ class ImageProcessor:
             ),
         }
 
+    def reload_config(self):
+        self.gemini_provider.reload_client()
+        self._apply_proxy_settings_to_env()
+        self.font_size_mapping = {
+            "very_small": self.config_manager.getint(
+                "FontSizeMapping", "very_small", 12
+            ),
+            "small": self.config_manager.getint("FontSizeMapping", "small", 16),
+            "medium": self.config_manager.getint("FontSizeMapping", "medium", 22),
+            "large": self.config_manager.getint("FontSizeMapping", "large", 28),
+            "very_large": self.config_manager.getint(
+                "FontSizeMapping", "very_large", 36
+            ),
+        }
+
     def _apply_proxy_settings_to_env(self):
         if self.config_manager.getboolean("Proxy", "enabled", fallback=False):
             proxy_host = self.config_manager.get("Proxy", "host")

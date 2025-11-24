@@ -24,6 +24,9 @@ class GeminiMultimodalProvider:
         self.configured_model_name: Optional[str] = None
         self._initialize_client()
 
+    def reload_client(self):
+        self._initialize_client()
+
     def _initialize_client(self):
         if not GENAI_LIB_AVAILABLE:
             self.last_error = "Google Gen AI 库 (google-genai) 未安装。"

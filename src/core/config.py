@@ -1,7 +1,7 @@
 import configparser
 import os
 
-CONFIG_FILE = "config.ini"
+CONFIG_FILE = os.path.join("config", "config.ini")
 DEFAULT_CONFIG = {
     "UI": {
         "background_image_path": "",
@@ -76,6 +76,14 @@ class ConfigManager:
         self._load_or_create_config()
 
     def _load_or_create_config(self):
+        # Ensure config directory exists
+        config_dir = os.path.dirname(self.config_path)
+        if config_dir and not os.path.exists(config_dir):
+            try:
+                os.makedirs(config_dir)
+            except OSError as e:
+                print(f"Error creating config directory '{config_dir}': {e}")
+
         if not os.path.exists(self.config_path):
             print(f"配置文件 '{self.config_path}' 不存在，将使用默认值创建。")
             for section, options in DEFAULT_CONFIG.items():
@@ -123,6 +131,11 @@ class ConfigManager:
 
     def _save_config_to_file(self):
         try:
+            # Ensure config directory exists before saving
+            config_dir = os.path.dirname(self.config_path)
+            if config_dir and not os.path.exists(config_dir):
+                os.makedirs(config_dir)
+                
             with open(self.config_path, "w", encoding="utf-8") as configfile:
                 self.config.write(configfile)
         except Exception as e:

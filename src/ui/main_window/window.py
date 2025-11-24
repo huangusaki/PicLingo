@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
     def open_api_settings(self):
         dialog = SettingsDialog(self.config_manager, self)
         if dialog.exec():
-            pass
+            self.image_processor.reload_config()
 
     def open_glossary_settings(self):
         dialog = GlossarySettingsDialog(self.config_manager, self)

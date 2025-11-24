@@ -383,6 +383,7 @@ class SettingsDialog(QDialog):
             "upscale_resample_method",
             self.llm_resample_method_combo.currentText(),
         )
+        self.config_manager.save()
         return True
 
     def _connect_signals(self):

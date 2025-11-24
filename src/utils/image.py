@@ -459,6 +459,15 @@ def _render_single_block_pil_for_preview(
         else:
             current_x_pil_col_draw_start = text_block_overall_start_x
         current_y_pil_char_start = text_block_overall_start_y
+        
+        # Define characters that need rotation in vertical text
+        VERTICAL_ROTATION_CHARS = {
+            "…", "—", "–", "-", "_", 
+            "(", ")", "[", "]", "{", "}", "<", ">",
+            "（", "）", "【", "】", "《", "》", "「", "」", "『", "』", "〈", "〉",
+            "～", "〜"
+        }
+        
         for col_idx, col_text in enumerate(wrapped_segments):
             is_manual_break_col = col_text == ""
             current_y_pil_char = current_y_pil_char_start
@@ -473,33 +482,99 @@ def _render_single_block_pil_for_preview(
                     final_char_draw_x = (
                         current_x_pil_col_draw_start + char_x_offset_in_col_slot
                     )
-                    if (
-                        outline_thickness > 0
-                        and text_outline_color_pil
-                        and len(text_outline_color_pil) == 4
-                        and text_outline_color_pil[3] > 0
-                    ):
-                        for dx_o in range(-outline_thickness, outline_thickness + 1):
-                            for dy_o in range(
-                                -outline_thickness, outline_thickness + 1
-                            ):
-                                if dx_o == 0 and dy_o == 0:
-                                    continue
-                                draw_on_block_surface.text(
-                                    (
-                                        final_char_draw_x + dx_o,
-                                        current_y_pil_char + dy_o,
-                                    ),
-                                    char_in_col,
-                                    font=pil_font,
-                                    fill=text_outline_color_pil,
-                                )
-                    draw_on_block_surface.text(
-                        (final_char_draw_x, current_y_pil_char),
-                        char_in_col,
-                        font=pil_font,
-                        fill=text_main_color_pil,
-                    )
+                    
+                    # Check if character needs rotation
+                    if char_in_col in VERTICAL_ROTATION_CHARS:
+                        # Create a small image for the character to rotate it
+                        # Use a slightly larger box to avoid clipping during rotation
+                        char_img_size = int(font_size_to_use * 1.5)
+                        char_img = Image.new("RGBA", (char_img_size, char_img_size), (0, 0, 0, 0))
+                        char_draw = ImageDraw.Draw(char_img)
+                        
+                        # Draw char centered precisely using textbbox
+                        # 1. Get bbox of the char
+                        left, top, right, bottom = char_draw.textbbox((0, 0), char_in_col, font=pil_font)
+                        char_w_real = right - left
+                        char_h_real = bottom - top
+                        
+                        # 2. Calculate position to center the bbox in the image
+                        # We want the center of the bbox ((left+right)/2, (top+bottom)/2) to be at (char_img_size/2, char_img_size/2)
+                        
+                        bbox_center_x = (left + right) / 2
+                        bbox_center_y = (top + bottom) / 2
+                        
+                        target_center_x = char_img_size / 2
+                        target_center_y = char_img_size / 2
+                        
+                        draw_x = target_center_x - bbox_center_x
+                        draw_y = target_center_y - bbox_center_y
+                        
+                        # Draw outline if needed
+                        if (
+                            outline_thickness > 0
+                            and text_outline_color_pil
+                            and len(text_outline_color_pil) == 4
+                            and text_outline_color_pil[3] > 0
+                        ):
+                             for dx_o in range(-outline_thickness, outline_thickness + 1):
+                                for dy_o in range(-outline_thickness, outline_thickness + 1):
+                                    if dx_o == 0 and dy_o == 0:
+                                        continue
+                                    char_draw.text(
+                                        (draw_x + dx_o, draw_y + dy_o),
+                                        char_in_col,
+                                        font=pil_font,
+                                        fill=text_outline_color_pil,
+                                    )
+                        
+                        # Draw main text
+                        char_draw.text(
+                            (draw_x, draw_y),
+                            char_in_col,
+                            font=pil_font,
+                            fill=text_main_color_pil,
+                        )
+                        
+                        # Rotate 90 degrees clockwise
+                        rotated_char_img = char_img.rotate(-90, resample=Image.Resampling.BICUBIC)
+                        
+                        # Calculate paste position (centering in the slot)
+                        slot_center_x = current_x_pil_col_draw_start + single_col_visual_width_metric / 2
+                        
+                        paste_x = int(slot_center_x - char_img_size / 2)
+                        paste_y = int(current_y_pil_char + (seg_secondary_dim_with_spacing - char_img_size) / 2)
+                        
+                        block_surface.alpha_composite(rotated_char_img, (paste_x, paste_y))
+                        
+                    else:
+                        # Normal drawing for non-rotated characters
+                        if (
+                            outline_thickness > 0
+                            and text_outline_color_pil
+                            and len(text_outline_color_pil) == 4
+                            and text_outline_color_pil[3] > 0
+                        ):
+                            for dx_o in range(-outline_thickness, outline_thickness + 1):
+                                for dy_o in range(
+                                    -outline_thickness, outline_thickness + 1
+                                ):
+                                    if dx_o == 0 and dy_o == 0:
+                                        continue
+                                    draw_on_block_surface.text(
+                                        (
+                                            final_char_draw_x + dx_o,
+                                            current_y_pil_char + dy_o,
+                                        ),
+                                        char_in_col,
+                                        font=pil_font,
+                                        fill=text_outline_color_pil,
+                                    )
+                        draw_on_block_surface.text(
+                            (final_char_draw_x, current_y_pil_char),
+                            char_in_col,
+                            font=pil_font,
+                            fill=text_main_color_pil,
+                        )
                     current_y_pil_char += seg_secondary_dim_with_spacing
             if col_idx < len(wrapped_segments) - 1:
                 spacing_for_next_column = (
