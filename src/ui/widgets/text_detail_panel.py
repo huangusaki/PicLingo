@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QSizePolicy,
+    QSplitter,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 from PyQt6.QtGui import QTextCursor
@@ -24,35 +25,35 @@ class TextDetailPanel(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        original_text_group = QGroupBox("原文（只可复制）")
-        original_text_layout = QVBoxLayout(original_text_group)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
+        self.splitter.setHandleWidth(10) # Give some space for the handle, but make it transparent via style
+
         self.original_text_edit = QTextEdit()
         self.original_text_edit.setReadOnly(True)
-        self.original_text_edit.setPlaceholderText("选中翻译的原始文本")
-        original_text_layout.addWidget(self.original_text_edit)
-        main_layout.addWidget(original_text_group)
-        translated_text_group = QGroupBox("译文")
-        translated_text_layout = QVBoxLayout(translated_text_group)
+        self.original_text_edit.setPlaceholderText("原文（只可复制）")
+        self.splitter.addWidget(self.original_text_edit)
+
         self.translated_text_edit = QTextEdit()
-        self.translated_text_edit.setPlaceholderText("选中翻译的翻译文本")
+        self.translated_text_edit.setPlaceholderText("译文")
         self.translated_text_edit.installEventFilter(self)
-        translated_text_layout.addWidget(self.translated_text_edit)
-        main_layout.addWidget(translated_text_group)
-        self.original_text_edit.setMinimumHeight(100)
-        self.translated_text_edit.setMinimumHeight(100)
-        self.original_text_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.translated_text_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        original_text_group.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
-        translated_text_group.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
-        )
+        self.splitter.addWidget(self.translated_text_edit)
+
+        # Set initial sizes to be equal
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
+
+        main_layout.addWidget(self.splitter)
+        
+        # Apply splitter handle style locally or rely on global/parent style
+        # We'll rely on the parent window style or set a default here just in case
+        self.splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: transparent;
+            }
+        """)
 
     def eventFilter(self, obj, event):
         if obj is self.translated_text_edit:

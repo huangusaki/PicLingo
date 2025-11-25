@@ -440,6 +440,8 @@ class SettingsDialog(QDialog):
         elif isinstance(state, bool):
             is_checked = state
         self.proxy_details_widget.setVisible(is_checked)
+        QApplication.processEvents()
+        self.layout().activate()
         self.adjustSize()
 
     def _toggle_llm_preprocess_details(self, state):
@@ -451,6 +453,8 @@ class SettingsDialog(QDialog):
         elif isinstance(state, bool):
             is_checked = state
         self.llm_preprocess_details_widget.setVisible(is_checked)
+        QApplication.processEvents()
+        self.layout().activate()
         self.adjustSize()
 
     def _update_provider_sections_visibility(self):

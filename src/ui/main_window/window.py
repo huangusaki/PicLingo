@@ -208,14 +208,14 @@ class MainWindow(QMainWindow):
         self.original_preview_area.setFrameStyle(
             QFrame.Shape.Panel | QFrame.Shadow.Sunken
         )
-        self.original_preview_area.setMinimumSize(250, 300)
+        self.original_preview_area.setMinimumSize(300, 400)
         self.original_preview_area.setWordWrap(True)
         self.splitter.addWidget(self.original_preview_area)
         self.interactive_translate_area = InteractiveLabel(self.config_manager, self)
-        self.interactive_translate_area.setMinimumSize(250, 300)
+        self.interactive_translate_area.setMinimumSize(300, 400)
         self.splitter.addWidget(self.interactive_translate_area)
         self.text_detail_panel = TextDetailPanel(self)
-        self.text_detail_panel.setMinimumSize(250, 300)
+        self.text_detail_panel.setMinimumSize(300, 400)
         self.splitter.addWidget(self.text_detail_panel)
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 2)
@@ -550,19 +550,70 @@ class MainWindow(QMainWindow):
             if not pixmap.isNull():
                 self.current_bg_image_path = file_path
                 self.config_manager.set("UI", "background_image_path", file_path)
+                self.config_manager.save()  # 持久化保存
                 self._apply_window_background(pixmap)
             else:
                 QMessageBox.warning(self, "错误", "无法加载该图片作为背景。")
 
     def _apply_window_background(self, pixmap: QPixmap):
-        palette = self.palette()
+        # 缩放背景图片
         scaled_pixmap = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
             Qt.TransformationMode.SmoothTransformation,
         )
-        palette.setBrush(QPalette.ColorRole.Window, QBrush(scaled_pixmap))
+        
+        # 降低亮度：在图片上绘制半透明黑色遮罩
+        darkened_pixmap = QPixmap(scaled_pixmap.size())
+        darkened_pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(darkened_pixmap)
+        painter.drawPixmap(0, 0, scaled_pixmap)
+        # 绘制半透明黑色遮罩（alpha=128表示50%透明度，可根据需要调整）
+        painter.fillRect(darkened_pixmap.rect(), QColor(0, 0, 0, 128))
+        painter.end()
+        
+        # 只为主窗口设置背景
+        palette = self.palette()
+        palette.setBrush(QPalette.ColorRole.Window, QBrush(darkened_pixmap))
         self.setPalette(palette)
+        
+        # 为所有三个主面板设置半透明背景和圆角
+        panel_style = """
+            QLabel, QWidget {
+                background-color: rgba(30, 30, 30, 180);
+                border-radius: 10px;
+            }
+        """
+        
+        # Splitter handle style to avoid "wallpaper coverage" glitch
+        splitter_style = """
+            QSplitter::handle {
+                background-color: transparent;
+            }
+        """
+        self.splitter.setStyleSheet(splitter_style)
+
+        if self.original_preview_area:
+            self.original_preview_area.setStyleSheet(panel_style)
+        if self.interactive_translate_area:
+            self.interactive_translate_area.setStyleSheet(panel_style)
+        
+        # 右侧文本详情面板：容器透明，文本编辑框有半透明背景和圆角
+        if self.text_detail_panel:
+            text_panel_style = """
+                TextDetailPanel {
+                    background-color: transparent;
+                }
+                QTextEdit {
+                    background-color: rgba(30, 30, 30, 180);
+                    border-radius: 10px;
+                    border: 1px solid rgba(255, 255, 255, 30);
+                    color: white;
+                    padding: 5px;
+                }
+            """
+            self.text_detail_panel.setStyleSheet(text_panel_style)
 
     def set_window_icon(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -572,6 +623,7 @@ class MainWindow(QMainWindow):
             if self._apply_window_icon(file_path):
                 self.current_icon_path = file_path
                 self.config_manager.set("UI", "window_icon_path", file_path)
+                self.config_manager.save()  # 持久化保存
             else:
                 QMessageBox.warning(self, "错误", "无法加载该图片作为图标。")
 

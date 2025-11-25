@@ -14,6 +14,7 @@ from PyQt6.QtGui import (
     QContextMenuEvent,
     QImage,
     QResizeEvent,
+    QPainterPath,
 )
 from PyQt6.QtCore import (
     Qt,
@@ -379,6 +380,12 @@ class InteractiveLabel(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        # Apply rounded clipping
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), 10, 10)
+        painter.setClipPath(path)
+
         bg_draw_x, bg_draw_y = 0, 0
         if self.scaled_background_pixmap and not self.scaled_background_pixmap.isNull():
             bg_draw_x = (self.width() - self.scaled_background_pixmap.width()) / 2.0
