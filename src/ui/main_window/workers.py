@@ -1,15 +1,50 @@
 import os
 import time
 import threading
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer, QObject
 from core.config import ConfigManager
 from core.processor import ImageProcessor
 from utils.image import draw_processed_blocks_pil
+
 if draw_processed_blocks_pil:
     from PIL import Image
 
+
+class SmoothProgressEmitter(QObject):
+    """单独的对象用于在主线程中管理平滑进度条更新"""
+
+    progress_tick = pyqtSignal(int)
+
+    def __init__(self, timeout_seconds: float, parent=None):
+        super().__init__(parent)
+        self.timeout_seconds = max(timeout_seconds, 1.0)
+        self.current_progress = 0.0
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._on_tick)
+        self.update_interval_ms = 100
+        self.increment_per_tick = 100.0 / (
+            self.timeout_seconds * 1000.0 / self.update_interval_ms
+        )
+
+    def start(self):
+        self.current_progress = 0.0
+        self.timer.start(self.update_interval_ms)
+
+    def stop(self):
+        self.timer.stop()
+
+    def _on_tick(self):
+        self.current_progress += self.increment_per_tick
+        if self.current_progress >= 100.0:
+            self.current_progress = 100.0
+            self.timer.stop()
+        self.progress_tick.emit(int(self.current_progress))
+
+
 class TranslationWorker(QThread):
     progress_signal = pyqtSignal(int, str)
+    progress_bar_only_signal = pyqtSignal(int)
+    status_text_only_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(object, object, str, str)
 
     def __init__(self, image_processor: ImageProcessor, image_path: str, parent=None):
@@ -17,6 +52,18 @@ class TranslationWorker(QThread):
         self.image_processor = image_processor
         self.image_path = image_path
         self.cancellation_event = threading.Event()
+        config_manager = self.image_processor.config_manager
+        ocr_provider = config_manager.get(
+            "API", "ocr_provider", fallback="gemini"
+        ).lower()
+        if ocr_provider == "openai":
+            self.timeout_seconds = config_manager.getint(
+                "OpenAIAPI", "request_timeout", fallback=60
+            )
+        else:
+            self.timeout_seconds = config_manager.getint(
+                "GeminiAPI", "request_timeout", fallback=60
+            )
 
     def run(self):
         try:
@@ -24,7 +71,7 @@ class TranslationWorker(QThread):
             def _progress_update(percentage, message):
                 if self.cancellation_event.is_set():
                     raise InterruptedError("处理已取消")
-                self.progress_signal.emit(percentage, message)
+                self.status_text_only_signal.emit(message)
 
             result_tuple = self.image_processor.process_image(
                 self.image_path,

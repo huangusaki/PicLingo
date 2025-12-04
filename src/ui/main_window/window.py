@@ -80,10 +80,15 @@ from ui.dialogs.text_style_settings import TextStyleSettingsDialog
 from ui.widgets.text_detail_panel import TextDetailPanel
 from ui.main_window.interactive_label import InteractiveLabel
 from ui.main_window.editable_text_dialog import EditableTextDialog
-from ui.main_window.workers import TranslationWorker, BatchTranslationWorker
+from ui.main_window.workers import (
+    TranslationWorker,
+    BatchTranslationWorker,
+    SmoothProgressEmitter,
+)
 
 if PILLOW_AVAILABLE:
     from PIL import Image, UnidentifiedImageError, ImageDraw, ImageFont as PILImageFont
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -116,6 +121,7 @@ class MainWindow(QMainWindow):
         self.status_label = None
         self.progress_bar = None
         self.cancel_button = None
+        self.smooth_progress_timer = None
         self.setAutoFillBackground(True)
         self._check_dependencies_on_startup()
         self._create_actions()
@@ -317,9 +323,7 @@ class MainWindow(QMainWindow):
         self.exit_action.triggered.connect(self.close)
         self.api_settings_action.triggered.connect(self.open_api_settings)
         self.glossary_settings_action.triggered.connect(self.open_glossary_settings)
-        self.text_style_settings_action.triggered.connect(
-            self.open_text_style_settings
-        )
+        self.text_style_settings_action.triggered.connect(self.open_text_style_settings)
         self.change_bg_action.triggered.connect(self.change_window_background)
         self.set_icon_action.triggered.connect(self.set_window_icon)
         self.translate_button.clicked.connect(self.start_translation)
@@ -407,8 +411,15 @@ class MainWindow(QMainWindow):
         self.translation_worker = TranslationWorker(
             self.image_processor, self.current_image_path
         )
-        self.translation_worker.progress_signal.connect(self.update_progress)
+        self.translation_worker.status_text_only_signal.connect(
+            self.update_status_text_only
+        )
         self.translation_worker.finished_signal.connect(self.translation_finished)
+        self.smooth_progress_timer = SmoothProgressEmitter(
+            self.translation_worker.timeout_seconds
+        )
+        self.smooth_progress_timer.progress_tick.connect(self.update_progress_bar_only)
+        self.smooth_progress_timer.start()
         self.translation_worker.start()
 
     def start_batch_translation(self, file_paths, output_dir):
@@ -443,8 +454,21 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(percentage)
         self.status_label.setText(message)
 
+    @pyqtSlot(int)
+    def update_progress_bar_only(self, percentage):
+        """仅更新进度条值（用于平滑动画）"""
+        self.progress_bar.setValue(percentage)
+
+    @pyqtSlot(str)
+    def update_status_text_only(self, message):
+        """仅更新状态文本（与进度条独立）"""
+        self.status_label.setText(message)
+
     @pyqtSlot(object, object, str, str)
     def translation_finished(self, original_img, blocks, image_path, error_msg):
+        if self.smooth_progress_timer:
+            self.smooth_progress_timer.stop()
+            self.smooth_progress_timer = None
         self.translate_button.setEnabled(True)
         self.load_action.setEnabled(True)
         self.load_batch_action.setEnabled(True)
@@ -481,7 +505,9 @@ class MainWindow(QMainWindow):
         self.progress_widget.setVisible(False)
         self.cancel_button.setVisible(False)
         self.cancel_button.setEnabled(True)
-        msg = f"批量处理结束。\n成功: {processed}\n失败: {errors}\n耗时: {duration:.2f}秒"
+        msg = (
+            f"批量处理结束。\n成功: {processed}\n失败: {errors}\n耗时: {duration:.2f}秒"
+        )
         if cancelled:
             msg += "\n(任务已取消)"
         QMessageBox.information(self, "批量完成", msg)
@@ -521,7 +547,9 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     QMessageBox.critical(self, "错误", f"保存失败: {e}")
             else:
-                QMessageBox.warning(self, "警告", "无法生成渲染结果，可能缺少背景图或库。")
+                QMessageBox.warning(
+                    self, "警告", "无法生成渲染结果，可能缺少背景图或库。"
+                )
 
     def open_api_settings(self):
         dialog = SettingsDialog(self.config_manager, self)
@@ -550,56 +578,42 @@ class MainWindow(QMainWindow):
             if not pixmap.isNull():
                 self.current_bg_image_path = file_path
                 self.config_manager.set("UI", "background_image_path", file_path)
-                self.config_manager.save()  # 持久化保存
+                self.config_manager.save()
                 self._apply_window_background(pixmap)
             else:
                 QMessageBox.warning(self, "错误", "无法加载该图片作为背景。")
 
     def _apply_window_background(self, pixmap: QPixmap):
-        # 缩放背景图片
         scaled_pixmap = pixmap.scaled(
             self.size(),
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
             Qt.TransformationMode.SmoothTransformation,
         )
-        
-        # 降低亮度：在图片上绘制半透明黑色遮罩
         darkened_pixmap = QPixmap(scaled_pixmap.size())
         darkened_pixmap.fill(Qt.GlobalColor.transparent)
-        
         painter = QPainter(darkened_pixmap)
         painter.drawPixmap(0, 0, scaled_pixmap)
-        # 绘制半透明黑色遮罩（alpha=128表示50%透明度，可根据需要调整）
         painter.fillRect(darkened_pixmap.rect(), QColor(0, 0, 0, 128))
         painter.end()
-        
-        # 只为主窗口设置背景
         palette = self.palette()
         palette.setBrush(QPalette.ColorRole.Window, QBrush(darkened_pixmap))
         self.setPalette(palette)
-        
-        # 为所有三个主面板设置半透明背景和圆角
         panel_style = """
             QLabel, QWidget {
                 background-color: rgba(30, 30, 30, 180);
                 border-radius: 10px;
             }
         """
-        
-        # Splitter handle style to avoid "wallpaper coverage" glitch
         splitter_style = """
             QSplitter::handle {
                 background-color: transparent;
             }
         """
         self.splitter.setStyleSheet(splitter_style)
-
         if self.original_preview_area:
             self.original_preview_area.setStyleSheet(panel_style)
         if self.interactive_translate_area:
             self.interactive_translate_area.setStyleSheet(panel_style)
-        
-        # 右侧文本详情面板：容器透明，文本编辑框有半透明背景和圆角
         if self.text_detail_panel:
             text_panel_style = """
                 TextDetailPanel {
@@ -623,7 +637,7 @@ class MainWindow(QMainWindow):
             if self._apply_window_icon(file_path):
                 self.current_icon_path = file_path
                 self.config_manager.set("UI", "window_icon_path", file_path)
-                self.config_manager.save()  # 持久化保存
+                self.config_manager.save()
             else:
                 QMessageBox.warning(self, "错误", "无法加载该图片作为图标。")
 
@@ -656,17 +670,15 @@ class MainWindow(QMainWindow):
         """Handle text changes from the text detail panel."""
         if not self.interactive_translate_area.processed_blocks:
             return
-        # Find the block with the matching ID
         target_block = None
         for block in self.interactive_translate_area.processed_blocks:
-            if hasattr(block, 'id') and str(block.id) == block_id:
+            if hasattr(block, "id") and str(block.id) == block_id:
                 target_block = block
                 break
         if target_block:
             target_block.translated_text = new_text
             self.interactive_translate_area._invalidate_block_cache(target_block)
             self.interactive_translate_area.block_modified_signal.emit(target_block)
-
 
     def update_block_controls_ui(self, block: ProcessedBlock | None):
         if not block:
@@ -710,9 +722,7 @@ class MainWindow(QMainWindow):
 
     def _set_btn_color(self, btn: QToolButton, color_tuple):
         if len(color_tuple) == 4:
-            c = QColor(
-                color_tuple[0], color_tuple[1], color_tuple[2], color_tuple[3]
-            )
+            c = QColor(color_tuple[0], color_tuple[1], color_tuple[2], color_tuple[3])
         else:
             c = QColor(color_tuple[0], color_tuple[1], color_tuple[2])
         pix = QPixmap(16, 16)

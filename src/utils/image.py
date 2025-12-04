@@ -23,8 +23,6 @@ if PILLOW_AVAILABLE:
     )
 
 
-
-
 def pil_to_qpixmap(pil_image: Image.Image) -> QPixmap | None:
     if not PILLOW_AVAILABLE or not pil_image:
         return None
@@ -201,25 +199,17 @@ def _render_single_block_pil_for_preview(
         return err_img_bbox
     max_content_width_for_wrapping = max(1, target_surface_width - (2 * text_padding))
     max_content_height_for_wrapping = max(1, target_surface_height - (2 * text_padding))
-    
-    # For bubble (ellipse) shapes, reduce available space to prevent text overflow at edges
-    # A rectangle inscribed in an ellipse has max area when sides are sqrt(2) smaller than axes
-    # Factor 0.707 is the theoretical limit, using 0.75 as a practical compromise for visual balance
-    # (Text doesn't usually fill the very corners of the wrapping box)
     shape_type = getattr(block, "shape_type", "box")
     bubble_offset_x = 0
     bubble_offset_y = 0
     if shape_type == "bubble":
         original_w = max_content_width_for_wrapping
         original_h = max_content_height_for_wrapping
-        # Use 0.75 to keep it reasonably large but safe enough for most text
         scale_factor = 0.75
         max_content_width_for_wrapping = int(original_w * scale_factor)
         max_content_height_for_wrapping = int(original_h * scale_factor)
-        # Calculate offset to keep the reduced box centered
         bubble_offset_x = (original_w - max_content_width_for_wrapping) / 2.0
         bubble_offset_y = (original_h - max_content_height_for_wrapping) / 2.0
-    
     wrapped_segments: list[str]
     actual_text_render_width_unpadded: int
     actual_text_render_height_unpadded: int
@@ -319,13 +309,11 @@ def _render_single_block_pil_for_preview(
     if text_bg_color_pil and len(text_bg_color_pil) == 4 and text_bg_color_pil[3] > 0:
         shape_type = getattr(block, "shape_type", "box")
         if shape_type == "bubble":
-            # Draw ellipse background for bubble style
             draw_on_block_surface.ellipse(
                 [(0, 0), (target_surface_width - 1, target_surface_height - 1)],
                 fill=text_bg_color_pil,
             )
         else:
-            # Draw rectangle background for box style (default)
             draw_on_block_surface.rectangle(
                 [(0, 0), (target_surface_width - 1, target_surface_height - 1)],
                 fill=text_bg_color_pil,
@@ -459,15 +447,35 @@ def _render_single_block_pil_for_preview(
         else:
             current_x_pil_col_draw_start = text_block_overall_start_x
         current_y_pil_char_start = text_block_overall_start_y
-        
-        # Define characters that need rotation in vertical text
         VERTICAL_ROTATION_CHARS = {
-            "…", "—", "–", "-", "_", 
-            "(", ")", "[", "]", "{", "}", "<", ">",
-            "（", "）", "【", "】", "《", "》", "「", "」", "『", "』", "〈", "〉",
-            "～", "〜"
+            "…",
+            "—",
+            "–",
+            "-",
+            "_",
+            "(",
+            ")",
+            "[",
+            "]",
+            "{",
+            "}",
+            "<",
+            ">",
+            "（",
+            "）",
+            "【",
+            "】",
+            "《",
+            "》",
+            "「",
+            "」",
+            "『",
+            "』",
+            "〈",
+            "〉",
+            "～",
+            "〜",
         }
-        
         for col_idx, col_text in enumerate(wrapped_segments):
             is_manual_break_col = col_text == ""
             current_y_pil_char = current_y_pil_char_start
@@ -482,42 +490,35 @@ def _render_single_block_pil_for_preview(
                     final_char_draw_x = (
                         current_x_pil_col_draw_start + char_x_offset_in_col_slot
                     )
-                    
-                    # Check if character needs rotation
                     if char_in_col in VERTICAL_ROTATION_CHARS:
-                        # Create a small image for the character to rotate it
-                        # Use a slightly larger box to avoid clipping during rotation
                         char_img_size = int(font_size_to_use * 1.5)
-                        char_img = Image.new("RGBA", (char_img_size, char_img_size), (0, 0, 0, 0))
+                        char_img = Image.new(
+                            "RGBA", (char_img_size, char_img_size), (0, 0, 0, 0)
+                        )
                         char_draw = ImageDraw.Draw(char_img)
-                        
-                        # Draw char centered precisely using textbbox
-                        # 1. Get bbox of the char
-                        left, top, right, bottom = char_draw.textbbox((0, 0), char_in_col, font=pil_font)
+                        left, top, right, bottom = char_draw.textbbox(
+                            (0, 0), char_in_col, font=pil_font
+                        )
                         char_w_real = right - left
                         char_h_real = bottom - top
-                        
-                        # 2. Calculate position to center the bbox in the image
-                        # We want the center of the bbox ((left+right)/2, (top+bottom)/2) to be at (char_img_size/2, char_img_size/2)
-                        
                         bbox_center_x = (left + right) / 2
                         bbox_center_y = (top + bottom) / 2
-                        
                         target_center_x = char_img_size / 2
                         target_center_y = char_img_size / 2
-                        
                         draw_x = target_center_x - bbox_center_x
                         draw_y = target_center_y - bbox_center_y
-                        
-                        # Draw outline if needed
                         if (
                             outline_thickness > 0
                             and text_outline_color_pil
                             and len(text_outline_color_pil) == 4
                             and text_outline_color_pil[3] > 0
                         ):
-                             for dx_o in range(-outline_thickness, outline_thickness + 1):
-                                for dy_o in range(-outline_thickness, outline_thickness + 1):
+                            for dx_o in range(
+                                -outline_thickness, outline_thickness + 1
+                            ):
+                                for dy_o in range(
+                                    -outline_thickness, outline_thickness + 1
+                                ):
                                     if dx_o == 0 and dy_o == 0:
                                         continue
                                     char_draw.text(
@@ -526,35 +527,37 @@ def _render_single_block_pil_for_preview(
                                         font=pil_font,
                                         fill=text_outline_color_pil,
                                     )
-                        
-                        # Draw main text
                         char_draw.text(
                             (draw_x, draw_y),
                             char_in_col,
                             font=pil_font,
                             fill=text_main_color_pil,
                         )
-                        
-                        # Rotate 90 degrees clockwise
-                        rotated_char_img = char_img.rotate(-90, resample=Image.Resampling.BICUBIC)
-                        
-                        # Calculate paste position (centering in the slot)
-                        slot_center_x = current_x_pil_col_draw_start + single_col_visual_width_metric / 2
-                        
+                        rotated_char_img = char_img.rotate(
+                            -90, resample=Image.Resampling.BICUBIC
+                        )
+                        slot_center_x = (
+                            current_x_pil_col_draw_start
+                            + single_col_visual_width_metric / 2
+                        )
                         paste_x = int(slot_center_x - char_img_size / 2)
-                        paste_y = int(current_y_pil_char + (seg_secondary_dim_with_spacing - char_img_size) / 2)
-                        
-                        block_surface.alpha_composite(rotated_char_img, (paste_x, paste_y))
-                        
+                        paste_y = int(
+                            current_y_pil_char
+                            + (seg_secondary_dim_with_spacing - char_img_size) / 2
+                        )
+                        block_surface.alpha_composite(
+                            rotated_char_img, (paste_x, paste_y)
+                        )
                     else:
-                        # Normal drawing for non-rotated characters
                         if (
                             outline_thickness > 0
                             and text_outline_color_pil
                             and len(text_outline_color_pil) == 4
                             and text_outline_color_pil[3] > 0
                         ):
-                            for dx_o in range(-outline_thickness, outline_thickness + 1):
+                            for dx_o in range(
+                                -outline_thickness, outline_thickness + 1
+                            ):
                                 for dy_o in range(
                                     -outline_thickness, outline_thickness + 1
                                 ):
@@ -678,7 +681,9 @@ def draw_processed_blocks_pil(
     config_manager,
 ):
     if not PILLOW_AVAILABLE or not pil_image_original:
-        print("Warning (draw_processed_blocks_pil): Pillow not available or no original image.")
+        print(
+            "Warning (draw_processed_blocks_pil): Pillow not available or no original image."
+        )
         return pil_image_original
     if not processed_blocks:
         return pil_image_original.copy() if pil_image_original else None
@@ -691,14 +696,20 @@ def draw_processed_blocks_pil(
         text_pad_conf = config_manager.getint("UI", "text_padding", 3)
         main_color_str = config_manager.get("UI", "text_main_color", "255,255,255,255")
         outline_color_str = config_manager.get("UI", "text_outline_color", "0,0,0,255")
-        outline_thick_conf_default = config_manager.getint("UI", "text_outline_thickness", 2)
+        outline_thick_conf_default = config_manager.getint(
+            "UI", "text_outline_thickness", 2
+        )
         bg_color_str = config_manager.get("UI", "text_background_color", "0,0,0,128")
         h_char_spacing_conf = config_manager.getint("UI", "h_text_char_spacing_px", 0)
         h_line_spacing_conf = config_manager.getint("UI", "h_text_line_spacing_px", 0)
         v_char_spacing_conf = config_manager.getint("UI", "v_text_char_spacing_px", 0)
         v_col_spacing_conf = config_manager.getint("UI", "v_text_column_spacing_px", 0)
-        h_manual_break_extra_conf = config_manager.getint("UI", "h_manual_break_extra_spacing_px", 0)
-        v_manual_break_extra_conf = config_manager.getint("UI", "v_manual_break_extra_spacing_px", 0)
+        h_manual_break_extra_conf = config_manager.getint(
+            "UI", "h_manual_break_extra_spacing_px", 0
+        )
+        v_manual_break_extra_conf = config_manager.getint(
+            "UI", "v_manual_break_extra_spacing_px", 0
+        )
 
         def _parse_color(color_string, default_rgba):
             try:
@@ -714,35 +725,62 @@ def draw_processed_blocks_pil(
         default_main_color_pil = _parse_color(main_color_str, (255, 255, 255, 255))
         default_outline_color_pil = _parse_color(outline_color_str, (0, 0, 0, 255))
         default_bg_color_pil = _parse_color(bg_color_str, (0, 0, 0, 128))
-        
         for idx, block_item in enumerate(processed_blocks):
-            if not hasattr(block_item, "translated_text") or not block_item.translated_text or not block_item.translated_text.strip():
+            if (
+                not hasattr(block_item, "translated_text")
+                or not block_item.translated_text
+                or not block_item.translated_text.strip()
+            ):
                 continue
-            if not hasattr(block_item, "bbox") or not block_item.bbox or len(block_item.bbox) != 4:
+            if (
+                not hasattr(block_item, "bbox")
+                or not block_item.bbox
+                or len(block_item.bbox) != 4
+            ):
                 continue
-            if not hasattr(block_item, "font_size_pixels") or not block_item.font_size_pixels or block_item.font_size_pixels <= 0:
+            if (
+                not hasattr(block_item, "font_size_pixels")
+                or not block_item.font_size_pixels
+                or block_item.font_size_pixels <= 0
+            ):
                 continue
-                
             main_color_to_use = default_main_color_pil
             if hasattr(block_item, "main_color") and block_item.main_color is not None:
-                if isinstance(block_item.main_color, tuple) and len(block_item.main_color) == 4:
+                if (
+                    isinstance(block_item.main_color, tuple)
+                    and len(block_item.main_color) == 4
+                ):
                     main_color_to_use = block_item.main_color
-                    
             outline_color_to_use = default_outline_color_pil
-            if hasattr(block_item, "outline_color") and block_item.outline_color is not None:
-                if isinstance(block_item.outline_color, tuple) and len(block_item.outline_color) == 4:
+            if (
+                hasattr(block_item, "outline_color")
+                and block_item.outline_color is not None
+            ):
+                if (
+                    isinstance(block_item.outline_color, tuple)
+                    and len(block_item.outline_color) == 4
+                ):
                     outline_color_to_use = block_item.outline_color
-                    
             bg_color_to_use = default_bg_color_pil
-            if hasattr(block_item, "background_color") and block_item.background_color is not None:
-                if isinstance(block_item.background_color, tuple) and len(block_item.background_color) == 4:
+            if (
+                hasattr(block_item, "background_color")
+                and block_item.background_color is not None
+            ):
+                if (
+                    isinstance(block_item.background_color, tuple)
+                    and len(block_item.background_color) == 4
+                ):
                     bg_color_to_use = block_item.background_color
-                    
             thickness_to_use = outline_thick_conf_default
-            if hasattr(block_item, "outline_thickness") and block_item.outline_thickness is not None:
-                if isinstance(block_item.outline_thickness, int) and block_item.outline_thickness >= 0:
+            if (
+                hasattr(block_item, "outline_thickness")
+                and block_item.outline_thickness is not None
+            ):
+                if (
+                    isinstance(block_item.outline_thickness, int)
+                    and block_item.outline_thickness >= 0
+                ):
                     thickness_to_use = block_item.outline_thickness
-                    
             _draw_single_block_pil(
                 draw_target_image=base_image,
                 block=block_item,
@@ -763,6 +801,7 @@ def draw_processed_blocks_pil(
     except Exception as e:
         print(f"严重错误 (draw_processed_blocks_pil): {e}")
         import traceback
+
         traceback.print_exc()
         return pil_image_original
 
@@ -783,7 +822,11 @@ def _draw_single_block_pil(
     h_manual_break_extra_px=0,
     v_manual_break_extra_px=0,
 ):
-    if not PILLOW_AVAILABLE or not block.translated_text or not block.translated_text.strip():
+    if (
+        not PILLOW_AVAILABLE
+        or not block.translated_text
+        or not block.translated_text.strip()
+    ):
         return
     rendered_block_content_pil = _render_single_block_pil_for_preview(
         block=block,
@@ -812,11 +855,17 @@ def _draw_single_block_pil(
             print(f"Error rotating block content: {e}")
     block_center_x_orig_coords = (block.bbox[0] + block.bbox[2]) / 2.0
     block_center_y_orig_coords = (block.bbox[1] + block.bbox[3]) / 2.0
-    paste_x = int(round(block_center_x_orig_coords - (final_surface_to_paste.width / 2.0)))
-    paste_y = int(round(block_center_y_orig_coords - (final_surface_to_paste.height / 2.0)))
+    paste_x = int(
+        round(block_center_x_orig_coords - (final_surface_to_paste.width / 2.0))
+    )
+    paste_y = int(
+        round(block_center_y_orig_coords - (final_surface_to_paste.height / 2.0))
+    )
     try:
         if final_surface_to_paste.mode == "RGBA":
-            draw_target_image.alpha_composite(final_surface_to_paste, (paste_x, paste_y))
+            draw_target_image.alpha_composite(
+                final_surface_to_paste, (paste_x, paste_y)
+            )
         else:
             draw_target_image.paste(final_surface_to_paste, (paste_x, paste_y))
     except Exception as e_paste:

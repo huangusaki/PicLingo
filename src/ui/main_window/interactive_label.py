@@ -37,9 +37,9 @@ from ui.main_window.editable_text_dialog import EditableTextDialog
 
 if PILLOW_AVAILABLE:
     from PIL import Image
-
 CORNER_HANDLE_SIZE = 10
 ROTATION_HANDLE_OFFSET = 20
+
 
 class InteractiveLabel(QWidget):
     block_modified_signal = pyqtSignal(object)
@@ -380,12 +380,9 @@ class InteractiveLabel(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-
-        # Apply rounded clipping
         path = QPainterPath()
         path.addRoundedRect(QRectF(self.rect()), 10, 10)
         painter.setClipPath(path)
-
         bg_draw_x, bg_draw_y = 0, 0
         if self.scaled_background_pixmap and not self.scaled_background_pixmap.isNull():
             bg_draw_x = (self.width() - self.scaled_background_pixmap.width()) / 2.0

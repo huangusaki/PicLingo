@@ -1,17 +1,17 @@
 import configparser
 import os
 
-# Use AppData directory for config file to avoid polluting the exe directory
+
 def _get_config_path():
     """Get the config file path in the user's AppData directory."""
-    appdata = os.getenv('APPDATA')  # Windows: C:\Users\<username>\AppData\Roaming
+    appdata = os.getenv("APPDATA")
     if appdata:
-        app_dir = os.path.join(appdata, 'ImageTranslator')
+        app_dir = os.path.join(appdata, "ImageTranslator")
         os.makedirs(app_dir, exist_ok=True)
-        return os.path.join(app_dir, 'config.ini')
+        return os.path.join(app_dir, "config.ini")
     else:
-        # Fallback to local directory if APPDATA is not available
         return os.path.join("config", "config.ini")
+
 
 CONFIG_FILE = _get_config_path()
 DEFAULT_CONFIG = {
@@ -57,7 +57,6 @@ DEFAULT_CONFIG = {
     "GeminiAPI": {
         "api_key": "",
         "model_name": "gemini-1.5-flash-latest",
-
         "request_timeout": "60",
         "target_language": "Chinese",
         "source_language": "Japanese",
@@ -87,14 +86,12 @@ class ConfigManager:
         self._load_or_create_config()
 
     def _load_or_create_config(self):
-        # Ensure config directory exists
         config_dir = os.path.dirname(self.config_path)
         if config_dir and not os.path.exists(config_dir):
             try:
                 os.makedirs(config_dir)
             except OSError as e:
                 print(f"Error creating config directory '{config_dir}': {e}")
-
         if not os.path.exists(self.config_path):
             print(f"配置文件 '{self.config_path}' 不存在，将使用默认值创建。")
             for section, options in DEFAULT_CONFIG.items():
@@ -142,11 +139,9 @@ class ConfigManager:
 
     def _save_config_to_file(self):
         try:
-            # Ensure config directory exists before saving
             config_dir = os.path.dirname(self.config_path)
             if config_dir and not os.path.exists(config_dir):
                 os.makedirs(config_dir)
-                
             with open(self.config_path, "w", encoding="utf-8") as configfile:
                 self.config.write(configfile)
         except Exception as e:

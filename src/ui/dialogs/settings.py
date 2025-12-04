@@ -50,9 +50,7 @@ class SettingsDialog(QDialog):
         primary_ocr_layout.addWidget(primary_ocr_label)
         primary_ocr_layout.addWidget(self.primary_ocr_combo, 1)
         ocr_layout.addLayout(primary_ocr_layout)
-
         main_layout.addWidget(self.ocr_group)
-
         self.gemini_group = QGroupBox("Gemini API 设置")
         self.gemini_group.setVisible(False)
         gemini_main_layout = QVBoxLayout(self.gemini_group)
@@ -74,7 +72,6 @@ class SettingsDialog(QDialog):
         gemini_model_layout.addWidget(gemini_model_label)
         gemini_model_layout.addWidget(self.gemini_model_edit, 1)
         gemini_main_layout.addLayout(gemini_model_layout)
-
         gemini_source_lang_layout = QHBoxLayout()
         gemini_source_lang_label = QLabel("Gemini 源语言:")
         self.gemini_source_lang_edit = QLineEdit()
@@ -100,15 +97,12 @@ class SettingsDialog(QDialog):
         gemini_timeout_layout.addWidget(gemini_timeout_label)
         gemini_timeout_layout.addWidget(self.gemini_timeout_edit, 0)
         gemini_main_layout.addLayout(gemini_timeout_layout)
-        
-        # OpenAI Group
         self.openai_group = QGroupBox("OpenAI Compatible 设置")
         self.openai_group.setVisible(False)
         openai_main_layout = QVBoxLayout(self.openai_group)
         self.openai_group.setSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
         )
-        
         openai_key_layout = QHBoxLayout()
         openai_key_label = QLabel("API Key:")
         self.openai_api_key_edit = QLineEdit()
@@ -117,7 +111,6 @@ class SettingsDialog(QDialog):
         openai_key_layout.addWidget(openai_key_label)
         openai_key_layout.addWidget(self.openai_api_key_edit, 1)
         openai_main_layout.addLayout(openai_key_layout)
-        
         openai_base_url_layout = QHBoxLayout()
         openai_base_url_label = QLabel("Base URL:")
         self.openai_base_url_edit = QLineEdit()
@@ -125,16 +118,15 @@ class SettingsDialog(QDialog):
         openai_base_url_layout.addWidget(openai_base_url_label)
         openai_base_url_layout.addWidget(self.openai_base_url_edit, 1)
         openai_main_layout.addLayout(openai_base_url_layout)
-        
         openai_model_layout = QHBoxLayout()
         openai_model_label = QLabel("模型名称:")
         self.openai_model_edit = QLineEdit()
-        self.openai_model_edit.setPlaceholderText("例如: gpt-4o, claude-3-5-sonnet-20240620")
+        self.openai_model_edit.setPlaceholderText(
+            "例如: gpt-4o, claude-3-5-sonnet-20240620"
+        )
         openai_model_layout.addWidget(openai_model_label)
         openai_model_layout.addWidget(self.openai_model_edit, 1)
-
         openai_main_layout.addLayout(openai_model_layout)
-
         openai_source_lang_layout = QHBoxLayout()
         openai_source_lang_label = QLabel("源语言:")
         self.openai_source_lang_edit = QLineEdit()
@@ -144,7 +136,6 @@ class SettingsDialog(QDialog):
         openai_source_lang_layout.addWidget(openai_source_lang_label)
         openai_source_lang_layout.addWidget(self.openai_source_lang_edit, 1)
         openai_main_layout.addLayout(openai_source_lang_layout)
-
         openai_target_lang_layout = QHBoxLayout()
         openai_target_lang_label = QLabel("目标翻译语言:")
         self.openai_target_lang_edit = QLineEdit()
@@ -154,7 +145,6 @@ class SettingsDialog(QDialog):
         openai_target_lang_layout.addWidget(openai_target_lang_label)
         openai_target_lang_layout.addWidget(self.openai_target_lang_edit, 1)
         openai_main_layout.addLayout(openai_target_lang_layout)
-
         openai_timeout_layout = QHBoxLayout()
         openai_timeout_label = QLabel("请求超时 (秒):")
         self.openai_timeout_edit = QLineEdit()
@@ -162,7 +152,6 @@ class SettingsDialog(QDialog):
         openai_timeout_layout.addWidget(openai_timeout_label)
         openai_timeout_layout.addWidget(self.openai_timeout_edit, 0)
         openai_main_layout.addLayout(openai_timeout_layout)
-        
         main_layout.addWidget(self.openai_group)
         self.llm_preprocess_group = QGroupBox("LLM 图像预处理 (不影响翻译后的图)")
         llm_preprocess_layout = QVBoxLayout(self.llm_preprocess_group)
@@ -266,7 +255,6 @@ class SettingsDialog(QDialog):
                 "GeminiAPI", "model_name", fallback="gemini-1.5-flash-latest"
             )
         )
-
         self.gemini_timeout_edit.setText(
             self.config_manager.get("GeminiAPI", "request_timeout", fallback="60")
         )
@@ -276,12 +264,13 @@ class SettingsDialog(QDialog):
         self.gemini_target_lang_edit.setText(
             self.config_manager.get("GeminiAPI", "target_language", fallback="Chinese")
         )
-        
         self.openai_api_key_edit.setText(
             self.config_manager.get("OpenAIAPI", "api_key", fallback="")
         )
         self.openai_base_url_edit.setText(
-            self.config_manager.get("OpenAIAPI", "base_url", fallback="https://api.openai.com/v1")
+            self.config_manager.get(
+                "OpenAIAPI", "base_url", fallback="https://api.openai.com/v1"
+            )
         )
         self.openai_model_edit.setText(
             self.config_manager.get("OpenAIAPI", "model_name", fallback="gpt-4o")
@@ -295,7 +284,6 @@ class SettingsDialog(QDialog):
         self.openai_target_lang_edit.setText(
             self.config_manager.get("OpenAIAPI", "target_language", fallback="Chinese")
         )
-
         proxy_enabled = self.config_manager.getboolean(
             "Proxy", "enabled", fallback=False
         )
@@ -347,8 +335,6 @@ class SettingsDialog(QDialog):
             "ocr_provider",
             "gemini" if self.primary_ocr_combo.currentIndex() == 0 else "openai",
         )
-
-
         self.config_manager.set("GeminiAPI", "api_key", self.gemini_api_key_edit.text())
         self.config_manager.set(
             "GeminiAPI",
@@ -360,7 +346,6 @@ class SettingsDialog(QDialog):
             "request_timeout",
             self.gemini_timeout_edit.text().strip() or "60",
         )
-
         self.config_manager.set(
             "GeminiAPI",
             "source_language",
@@ -371,12 +356,19 @@ class SettingsDialog(QDialog):
             "target_language",
             self.gemini_target_lang_edit.text().strip() or "Chinese",
         )
-        
         self.config_manager.set("OpenAIAPI", "api_key", self.openai_api_key_edit.text())
-        self.config_manager.set("OpenAIAPI", "base_url", self.openai_base_url_edit.text().strip())
-        self.config_manager.set("OpenAIAPI", "model_name", self.openai_model_edit.text().strip())
-        self.config_manager.set("OpenAIAPI", "request_timeout", self.openai_timeout_edit.text().strip())
-        self.config_manager.set("OpenAIAPI", "request_timeout", self.openai_timeout_edit.text().strip())
+        self.config_manager.set(
+            "OpenAIAPI", "base_url", self.openai_base_url_edit.text().strip()
+        )
+        self.config_manager.set(
+            "OpenAIAPI", "model_name", self.openai_model_edit.text().strip()
+        )
+        self.config_manager.set(
+            "OpenAIAPI", "request_timeout", self.openai_timeout_edit.text().strip()
+        )
+        self.config_manager.set(
+            "OpenAIAPI", "request_timeout", self.openai_timeout_edit.text().strip()
+        )
         self.config_manager.set(
             "OpenAIAPI",
             "source_language",
@@ -462,15 +454,12 @@ class SettingsDialog(QDialog):
         show_gemini_api_settings_group_flag = is_gemini_ocr_primary
         if self.gemini_group.isVisible() != show_gemini_api_settings_group_flag:
             self.gemini_group.setVisible(show_gemini_api_settings_group_flag)
-            
         show_openai_group_flag = not is_gemini_ocr_primary
         if self.openai_group.isVisible() != show_openai_group_flag:
             self.openai_group.setVisible(show_openai_group_flag)
         QApplication.processEvents()
         self.layout().activate()
         self.adjustSize()
-
-
 
     @pyqtSlot()
     def on_save(self):
@@ -498,24 +487,23 @@ class SettingsDialog(QDialog):
                 self.gemini_target_lang_edit.setFocus()
                 return
         else:
-             if not self.openai_api_key_edit.text().strip():
+            if not self.openai_api_key_edit.text().strip():
                 QMessageBox.warning(self, "输入错误", "OpenAI API Key 未填写。")
                 self.openai_api_key_edit.setFocus()
                 return
-             if not self.openai_base_url_edit.text().strip():
+            if not self.openai_base_url_edit.text().strip():
                 QMessageBox.warning(self, "输入错误", "OpenAI Base URL 未填写。")
                 self.openai_base_url_edit.setFocus()
                 return
-             if not self.openai_model_edit.text().strip():
+            if not self.openai_model_edit.text().strip():
                 QMessageBox.warning(self, "输入错误", "OpenAI 模型名称未填写。")
                 self.openai_model_edit.setFocus()
-
                 return
-             if not self.openai_source_lang_edit.text().strip():
+            if not self.openai_source_lang_edit.text().strip():
                 QMessageBox.warning(self, "输入错误", "OpenAI 源语言未填写。")
                 self.openai_source_lang_edit.setFocus()
                 return
-             if not self.openai_target_lang_edit.text().strip():
+            if not self.openai_target_lang_edit.text().strip():
                 QMessageBox.warning(self, "输入错误", "OpenAI 目标翻译语言未填写。")
                 self.openai_target_lang_edit.setFocus()
                 return
@@ -526,7 +514,6 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, "输入错误", "Gemini 请求超时必须是一个正整数。")
             self.gemini_timeout_edit.setFocus()
             return
-
         if self.llm_preprocess_enabled_checkbox.isChecked():
             try:
                 upscale_f = float(self.llm_upscale_factor_edit.text().strip())

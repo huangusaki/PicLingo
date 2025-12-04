@@ -15,7 +15,7 @@ from core.processor import ProcessedBlock
 
 
 class TextDetailPanel(QWidget):
-    translated_text_changed_externally_signal = pyqtSignal(str, str)  # new_text, block_id
+    translated_text_changed_externally_signal = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,40 +27,35 @@ class TextDetailPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-
         self.splitter = QSplitter(Qt.Orientation.Vertical)
-        self.splitter.setHandleWidth(10) # Give some space for the handle, but make it transparent via style
-
+        self.splitter.setHandleWidth(10)
         self.original_text_edit = QTextEdit()
         self.original_text_edit.setReadOnly(True)
         self.original_text_edit.setPlaceholderText("原文（只可复制）")
         self.splitter.addWidget(self.original_text_edit)
-
         self.translated_text_edit = QTextEdit()
         self.translated_text_edit.setPlaceholderText("译文")
         self.translated_text_edit.installEventFilter(self)
         self.splitter.addWidget(self.translated_text_edit)
-
-        # Set initial sizes to be equal
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
-
         main_layout.addWidget(self.splitter)
-        
-        # Apply splitter handle style locally or rely on global/parent style
-        # We'll rely on the parent window style or set a default here just in case
-        self.splitter.setStyleSheet("""
+        self.splitter.setStyleSheet(
+            """
             QSplitter::handle {
                 background-color: transparent;
             }
-        """)
+        """
+        )
 
     def eventFilter(self, obj, event):
         if obj is self.translated_text_edit:
             if event.type() == QEvent.Type.FocusOut:
                 if self._current_block_id is not None and not self._programmatic_update:
                     new_text = self.translated_text_edit.toPlainText()
-                    self.translated_text_changed_externally_signal.emit(new_text, str(self._current_block_id))
+                    self.translated_text_changed_externally_signal.emit(
+                        new_text, str(self._current_block_id)
+                    )
         return super().eventFilter(obj, event)
 
     def update_texts(
@@ -105,7 +100,6 @@ class TextDetailPanel(QWidget):
             self.clear_texts()
 
     def set_blocks(self, blocks: list[ProcessedBlock]):
-        # This panel only shows one block at a time, so we don't need to store the list
         pass
 
     def clear_content(self):

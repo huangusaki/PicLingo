@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QHBoxLayout, QPushButton
 
+
 class EditableTextDialog(QDialog):
     def __init__(self, initial_text, parent=None):
         super().__init__(parent)
